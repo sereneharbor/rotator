@@ -1,0 +1,96 @@
+{
+  "mirrors": [
+    {
+      "id": "m1777904700044",
+      "url": "https://www.yohoslot2.com",
+      "label": "yohoslot2.com",
+      "enabled": true
+    },
+    {
+      "id": "m1777904711602",
+      "url": "https://www.yohoslot3.com",
+      "label": "yohoslot3.com",
+      "enabled": true
+    },
+    {
+      "id": "m1777906218764",
+      "url": "https://www.google.com",
+      "label": "https://www.google.com",
+      "enabled": true
+    }
+  ],
+  "config": {
+    "probeTimeoutMs": 7000,
+    "updatedAt": "2026-05-04T14:35:51.743Z"
+  },
+  "history": [
+    {
+      "action": "mirrors_updated",
+      "detail": "Added: www.google.com",
+      "setAt": "2026-05-04T14:50:20.155Z",
+      "setBy": "admin"
+    },
+    {
+      "action": "config_updated",
+      "detail": "probeTimeoutMs set to 7000ms",
+      "setAt": "2026-05-04T14:35:51.743Z",
+      "setBy": "admin"
+    },
+    {
+      "action": "config_updated",
+      "detail": "probeTimeoutMs set to 3000ms",
+      "setAt": "2026-05-04T14:26:32.958Z",
+      "setBy": "admin"
+    },
+    {
+      "action": "mirrors_updated",
+      "detail": "Reordered or toggled mirrors",
+      "setAt": "2026-05-04T14:25:29.369Z",
+      "setBy": "admin"
+    },
+    {
+      "action": "mirrors_updated",
+      "detail": "Added: www.yohoslot2.com, www.yohoslot3.com",
+      "setAt": "2026-05-04T14:25:12.951Z",
+      "setBy": "admin"
+    }
+  ],
+  "redirectLog": [
+    {
+      "timestamp": "2026-05-04T15:03:09.758Z",
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+      "result": "redirected",
+      "redirectedTo": "https://www.google.com/",
+      "mirrorId": "m1777906218764",
+      "entryParams": ""
+    },
+    {
+      "timestamp": "2026-05-04T15:03:09.755Z",
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+      "result": "redirected",
+      "redirectedTo": "https://www.google.com/",
+      "mirrorId": "m1777906218764",
+      "entryParams": ""
+    },
+    {
+      "timestamp": "2026-05-04T15:01:04.570Z",
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+      "result": "redirected",
+      "redirectedTo": "https://www.google.com/",
+      "mirrorId": "m1777906218764",
+      "entryParams": ""
+    },
+    {
+      "timestamp": "2026-05-04T15:01:04.566Z",
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+      "result": "redirected",
+      "redirectedTo": "https://www.google.com/",
+      "mirrorId": "m1777906218764",
+      "entryParams": ""
+    }
+  ]
+}
