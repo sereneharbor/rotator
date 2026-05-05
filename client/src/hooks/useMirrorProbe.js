@@ -2,21 +2,31 @@ import { useState, useCallback } from 'react';
 
 const DEFAULT_TIMEOUT_MS = 3000;
 
+/**
+ * Probe a single mirror URL from the browser.
+ * Returns { healthy, reason } — reason is set when unhealthy.
+ *
+ * Note: browser fetch with mode:'no-cors' returns opaque responses so we
+ * cannot read HTTP status or body. Detection is timeout-based only.
+ * Server-side probing (POST /api/probe) handles content analysis.
+ */
 async function probeMirror(url, timeoutMs) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     await fetch(url, { signal: controller.signal, mode: 'no-cors' });
-    return true;
-  } catch {
-    return false;
+    return { healthy: true, reason: null };
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      return { healthy: false, reason: `connection timed out after ${timeoutMs}ms` };
+    }
+    return { healthy: false, reason: err.message || 'network error' };
   } finally {
     clearTimeout(timer);
   }
 }
 
 function sendLog(payload) {
-  // keepalive: true ensures the request completes even after window.location.replace()
   try {
     fetch('/api/log', {
       method: 'POST',
@@ -25,7 +35,7 @@ function sendLog(payload) {
       keepalive: true,
     });
   } catch {
-    // fire-and-forget — never block the redirect
+    // fire-and-forget
   }
 }
 
@@ -37,36 +47,42 @@ export function useMirrorProbe() {
     setStatus('probing');
     setError(null);
 
-    // Build current page's query params to forward
     const entryParams = new URLSearchParams(window.location.search);
 
-    // No mirrors configured — keep spinner; nothing to probe yet
     if (mirrors.length === 0) {
       setStatus('probing');
       return;
     }
 
-    // Probe all mirrors concurrently
+    // Probe all mirrors concurrently, capturing per-mirror detail
     const results = await Promise.all(
       mirrors.map(async (mirror, index) => {
-        const healthy = await probeMirror(mirror.url, timeoutMs);
-        return { mirror, index, healthy };
+        const { healthy, reason } = await probeMirror(mirror.url, timeoutMs);
+        return { mirror, index, healthy, reason };
       })
     );
 
-    // Find first healthy mirror by original priority order (lowest index)
+    // Build the per-mirror log payload (url hostname only — don't log full URLs to server)
+    const mirrorResults = results.map((r) => ({
+      id: r.mirror.id,
+      url: r.mirror.url,
+      healthy: r.healthy,
+      reason: r.reason,
+    }));
+
+    // Select first healthy mirror by priority order
     const winner = results
       .filter((r) => r.healthy)
       .sort((a, b) => a.index - b.index)[0];
 
     if (!winner) {
-      sendLog({ result: 'all_failed', entryParams: entryParams.toString() });
+      sendLog({ result: 'all_failed', entryParams: entryParams.toString(), mirrorResults });
       setStatus('failed');
       setError('all_failed');
       return;
     }
 
-    // Merge entry params into mirror URL without overwriting existing mirror params
+    // Merge entry params into mirror URL
     const targetUrl = new URL(winner.mirror.url);
     for (const [key, value] of entryParams.entries()) {
       if (!targetUrl.searchParams.has(key)) {
@@ -79,6 +95,7 @@ export function useMirrorProbe() {
       redirectedTo: targetUrl.toString(),
       mirrorId: winner.mirror.id,
       entryParams: entryParams.toString(),
+      mirrorResults,
     });
 
     setStatus('success');

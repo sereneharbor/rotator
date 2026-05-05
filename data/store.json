@@ -1,21 +1,57 @@
 {
   "mirrors": [
     {
+      "serverStatus": "blocked",
+      "serverStatusReason": "HTTP 403 response",
+      "serverStatusAt": "2026-05-05T03:29:38.845Z",
       "id": "m1777904700044",
       "url": "https://www.yohoslot2.com",
       "label": "yohoslot2.com",
       "enabled": true
     },
     {
+      "serverStatus": "blocked",
+      "serverStatusReason": "HTTP 403 response",
+      "serverStatusAt": "2026-05-05T03:29:38.845Z",
       "id": "m1777904711602",
       "url": "https://www.yohoslot3.com",
       "label": "yohoslot3.com",
       "enabled": true
     },
     {
+      "serverStatus": "healthy",
+      "serverStatusReason": null,
+      "serverStatusAt": "2026-05-05T03:29:38.845Z",
       "id": "m1777906218764",
       "url": "https://www.google.com",
       "label": "https://www.google.com",
+      "enabled": true
+    },
+    {
+      "serverStatus": "blocked",
+      "serverStatusReason": "HTTP 403 response",
+      "serverStatusAt": "2026-05-05T03:29:38.845Z",
+      "id": "m1777950994736",
+      "url": "https://www.razed.com",
+      "label": "https://www.razed.com",
+      "enabled": true
+    },
+    {
+      "serverStatus": "blocked",
+      "serverStatusReason": "HTTP 403 response",
+      "serverStatusAt": "2026-05-05T03:29:38.845Z",
+      "id": "m1777951050008",
+      "url": "https://www.terragon.tech",
+      "label": "https://www.terragon.tech",
+      "enabled": true
+    },
+    {
+      "serverStatus": "healthy",
+      "serverStatusReason": null,
+      "serverStatusAt": "2026-05-05T03:29:38.845Z",
+      "id": "m1777951078627",
+      "url": "https://www.cnn.com",
+      "label": "https://www.cnn.com",
       "enabled": true
     }
   ],
@@ -24,6 +60,24 @@
     "updatedAt": "2026-05-04T14:35:51.743Z"
   },
   "history": [
+    {
+      "action": "mirrors_updated",
+      "detail": "Added: www.cnn.com",
+      "setAt": "2026-05-05T03:17:59.586Z",
+      "setBy": "admin"
+    },
+    {
+      "action": "mirrors_updated",
+      "detail": "Added: www.terragon.tech",
+      "setAt": "2026-05-05T03:17:31.431Z",
+      "setBy": "admin"
+    },
+    {
+      "action": "mirrors_updated",
+      "detail": "Added: www.razed.com",
+      "setAt": "2026-05-05T03:16:35.589Z",
+      "setBy": "admin"
+    },
     {
       "action": "mirrors_updated",
       "detail": "Added: www.google.com",
@@ -56,6 +110,156 @@
     }
   ],
   "redirectLog": [
+    {
+      "timestamp": "2026-05-05T03:31:10.426Z",
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+      "result": "redirected",
+      "redirectedTo": "https://www.google.com/",
+      "mirrorId": "m1777906218764",
+      "entryParams": "",
+      "mirrorResults": [
+        {
+          "id": "m1777906218764",
+          "url": "https://www.google.com",
+          "healthy": true,
+          "reason": null
+        },
+        {
+          "id": "m1777951078627",
+          "url": "https://www.cnn.com",
+          "healthy": true,
+          "reason": null
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-05-05T03:31:10.418Z",
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+      "result": "redirected",
+      "redirectedTo": "https://www.google.com/",
+      "mirrorId": "m1777906218764",
+      "entryParams": "",
+      "mirrorResults": [
+        {
+          "id": "m1777906218764",
+          "url": "https://www.google.com",
+          "healthy": true,
+          "reason": null
+        },
+        {
+          "id": "m1777951078627",
+          "url": "https://www.cnn.com",
+          "healthy": true,
+          "reason": null
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-05-05T03:26:47.015Z",
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+      "result": "redirected",
+      "redirectedTo": "https://www.google.com/",
+      "mirrorId": "m1777906218764",
+      "entryParams": "",
+      "mirrorResults": [
+        {
+          "id": "m1777906218764",
+          "url": "https://www.google.com",
+          "healthy": true,
+          "reason": null
+        },
+        {
+          "id": "m1777951078627",
+          "url": "https://www.cnn.com",
+          "healthy": true,
+          "reason": null
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-05-04T15:28:16.284Z",
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+      "result": "redirected",
+      "redirectedTo": "https://www.yohoslot2.com/",
+      "mirrorId": "m1777904700044",
+      "entryParams": ""
+    },
+    {
+      "timestamp": "2026-05-04T15:28:06.239Z",
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+      "result": "redirected",
+      "redirectedTo": "https://www.google.com/",
+      "mirrorId": "m1777906218764",
+      "entryParams": ""
+    },
+    {
+      "timestamp": "2026-05-04T15:28:05.932Z",
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+      "result": "redirected",
+      "redirectedTo": "https://www.yohoslot2.com/",
+      "mirrorId": "m1777904700044",
+      "entryParams": ""
+    },
+    {
+      "timestamp": "2026-05-04T15:28:03.086Z",
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+      "result": "redirected",
+      "redirectedTo": "https://www.yohoslot2.com/",
+      "mirrorId": "m1777904700044",
+      "entryParams": ""
+    },
+    {
+      "timestamp": "2026-05-04T15:28:01.520Z",
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+      "result": "redirected",
+      "redirectedTo": "https://www.google.com/",
+      "mirrorId": "m1777906218764",
+      "entryParams": ""
+    },
+    {
+      "timestamp": "2026-05-04T15:28:01.252Z",
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+      "result": "redirected",
+      "redirectedTo": "https://www.yohoslot2.com/",
+      "mirrorId": "m1777904700044",
+      "entryParams": ""
+    },
+    {
+      "timestamp": "2026-05-04T15:27:55.461Z",
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+      "result": "redirected",
+      "redirectedTo": "https://www.yohoslot2.com/",
+      "mirrorId": "m1777904700044",
+      "entryParams": ""
+    },
+    {
+      "timestamp": "2026-05-04T15:27:52.423Z",
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+      "result": "redirected",
+      "redirectedTo": "https://www.yohoslot2.com/",
+      "mirrorId": "m1777904700044",
+      "entryParams": ""
+    },
+    {
+      "timestamp": "2026-05-04T15:27:51.802Z",
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+      "result": "redirected",
+      "redirectedTo": "https://www.yohoslot2.com/",
+      "mirrorId": "m1777904700044",
+      "entryParams": ""
+    },
     {
       "timestamp": "2026-05-04T15:03:09.758Z",
       "ip": "::1",

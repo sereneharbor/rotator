@@ -22,6 +22,7 @@ app.use('/api/mirrors', require('./routes/mirrors'));
 app.use('/api/config', require('./routes/config'));
 app.use('/api/history', require('./routes/history'));
 app.use('/api/log', require('./routes/log'));
+app.use('/api/probe', require('./routes/probe'));
 
 // Serve React SPA in production
 if (process.env.NODE_ENV === 'production') {

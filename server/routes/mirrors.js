@@ -2,42 +2,92 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const requireAuth = require('../middleware/auth');
 const { readStore, writeStore } = require('../storage');
+const { probeAll } = require('../probe');
+const { checkAndAlert } = require('../alerts');
 
 const router = express.Router();
 
-// Public or admin — returns enabled mirrors (public) or full list (admin)
-router.get('/', (req, res) => {
-  const store = readStore();
+// ─── Bot User-Agent blocklist ─────────────────────────────────────────────────
 
-  // If a valid bearer token is present, return the full admin list
+const BOT_UA_PATTERNS = [
+  /^curl\//i,
+  /^wget\//i,
+  /python-requests/i,
+  /^python\//i,
+  /go-http-client/i,
+  /scrapy/i,
+  /mechanize/i,
+  /^java\//i,
+  /libwww/i,
+  /lwp-/i,
+  /okhttp/i,
+  /apache-httpclient/i,
+  /^axios\//i,
+  /^node-fetch/i,
+  /^got\//i,
+  /^undici/i,
+];
+
+function isBotUA(ua) {
+  if (!ua) return true;
+  return BOT_UA_PATTERNS.some((p) => p.test(ua));
+}
+
+// ─── Controller token check ───────────────────────────────────────────────────
+
+function hasValidControllerToken(req) {
+  const required = process.env.CONTROLLER_TOKEN;
+  if (!required) return true; // not configured — allow all
+  return req.headers['x-controller-token'] === required;
+}
+
+// ─── GET /api/mirrors ─────────────────────────────────────────────────────────
+
+router.get('/', (req, res) => {
+  const ua = req.headers['user-agent'] || '';
+
+  // If a valid admin Bearer token is present, return the full list (admin view)
   const header = req.headers['authorization'] || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
   if (token) {
     try {
       jwt.verify(token, process.env.JWT_SECRET);
+      const store = readStore();
       return res.json(store.mirrors);
     } catch {
       // fall through to public response
     }
   }
 
-  // Public response: enabled only, id + url, no labels
+  // Block bot User-Agents
+  if (isBotUA(ua)) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  // Require controller token if configured
+  if (!hasValidControllerToken(req)) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  const store = readStore();
+
+  // Public response: enabled + not server-blocked mirrors, id + url only
   const enabled = store.mirrors
-    .filter((m) => m.enabled)
+    .filter((m) => m.enabled && m.serverStatus !== 'blocked')
     .map(({ id, url }) => ({ id, url }));
-  // Expose the configured probe timeout so the controller can use it without auth
+
   res.set('X-Probe-Timeout-Ms', String(store.config.probeTimeoutMs || 3000));
   res.json(enabled);
 });
 
-// Protected — replaces full mirror list
-router.post('/', requireAuth, (req, res) => {
+// ─── POST /api/mirrors ────────────────────────────────────────────────────────
+
+router.post('/', requireAuth, async (req, res) => {
   const mirrors = req.body;
 
   if (!Array.isArray(mirrors)) {
     return res.status(400).json({ error: 'Body must be an array of mirrors' });
   }
-
   if (mirrors.length > 20) {
     return res.status(400).json({ error: 'Maximum 20 mirrors allowed' });
   }
@@ -73,13 +123,27 @@ router.post('/', requireAuth, (req, res) => {
 
   const added = newUrls.filter((u) => !oldUrls.includes(u));
   const removed = oldUrls.filter((u) => !newUrls.includes(u));
-
   const parts = [];
   if (added.length) parts.push(`Added: ${added.map((u) => new URL(u).hostname).join(', ')}`);
   if (removed.length) parts.push(`Removed: ${removed.map((u) => new URL(u).hostname).join(', ')}`);
   const detail = parts.length ? parts.join('; ') : 'Reordered or toggled mirrors';
 
-  store.mirrors = mirrors;
+  // Preserve existing serverStatus for mirrors that already exist
+  const existingStatusMap = new Map(
+    store.mirrors.map((m) => [m.id, {
+      serverStatus: m.serverStatus,
+      serverStatusReason: m.serverStatusReason,
+      serverStatusAt: m.serverStatusAt,
+    }])
+  );
+
+  store.mirrors = mirrors.map((m) => ({
+    serverStatus: null,
+    serverStatusReason: null,
+    serverStatusAt: null,
+    ...existingStatusMap.get(m.id),
+    ...m,
+  }));
 
   const entry = {
     action: 'mirrors_updated',
@@ -88,8 +152,30 @@ router.post('/', requireAuth, (req, res) => {
     setBy: 'admin',
   };
   store.history = [entry, ...store.history].slice(0, 50);
-
   writeStore(store);
+
+  // Probe newly added mirrors in the background (fire and forget)
+  const newMirrors = mirrors.filter((m) => !existingStatusMap.has(m.id));
+  if (newMirrors.length) {
+    probeAll(newMirrors).then((results) => {
+      const resultMap = new Map(results.map((r) => [r.id, r]));
+      const fresh = readStore();
+      fresh.mirrors = fresh.mirrors.map((m) => {
+        const r = resultMap.get(m.id);
+        if (!r) return m;
+        return {
+          ...m,
+          serverStatus: r.status,
+          serverStatusReason: r.reason || null,
+          serverStatusAt: new Date().toISOString(),
+        };
+      });
+      writeStore(fresh);
+      checkAndAlert(fresh);
+    }).catch(() => {});
+  }
+
+  checkAndAlert(store);
 
   res.json(store.mirrors);
 });

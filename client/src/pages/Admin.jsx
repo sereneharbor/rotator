@@ -97,6 +97,26 @@ function LoginScreen({ onLogin }) {
 
 // ─── Sortable Mirror Row ──────────────────────────────────────────────────────
 
+const SERVER_STATUS_BADGE = {
+  healthy: { label: 'healthy', cls: 'bg-green-900/50 text-green-400 border-green-700' },
+  blocked: { label: 'blocked', cls: 'bg-red-900/50 text-red-400 border-red-700' },
+  timeout: { label: 'timeout', cls: 'bg-yellow-900/50 text-yellow-400 border-yellow-700' },
+  error:   { label: 'error',   cls: 'bg-orange-900/50 text-orange-400 border-orange-700' },
+};
+
+function ServerStatusBadge({ status, reason }) {
+  if (!status) return <span className="text-xs text-gray-600">not checked</span>;
+  const badge = SERVER_STATUS_BADGE[status] || { label: status, cls: 'bg-gray-700 text-gray-400 border-gray-600' };
+  return (
+    <span
+      title={reason || undefined}
+      className={`text-xs px-1.5 py-0.5 rounded border font-mono ${badge.cls}`}
+    >
+      {badge.label}
+    </span>
+  );
+}
+
 function SortableMirrorRow({ mirror, onToggle, onDelete }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: mirror.id });
@@ -130,9 +150,12 @@ function SortableMirrorRow({ mirror, onToggle, onDelete }) {
         </svg>
       </button>
 
-      {/* Label + URL */}
+      {/* Label + URL + server status */}
       <div className="flex-1 min-w-0">
-        <p className="text-white text-sm font-medium truncate">{mirror.label || '(no label)'}</p>
+        <div className="flex items-center gap-2">
+          <p className="text-white text-sm font-medium truncate">{mirror.label || '(no label)'}</p>
+          <ServerStatusBadge status={mirror.serverStatus} reason={mirror.serverStatusReason} />
+        </div>
         <p className="text-gray-400 text-xs truncate">{mirror.url}</p>
       </div>
 
@@ -177,6 +200,7 @@ function MirrorManager({ onSaved }) {
   const [addError, setAddError] = useState('');
   const [saveStatus, setSaveStatus] = useState('idle'); // idle | saving | saved | error
   const [saveError, setSaveError] = useState('');
+  const [probeStatus, setProbeStatus] = useState('idle'); // idle | probing | done | error
   const saveTimer = useRef(null);
 
   const sensors = useSensors(
@@ -244,6 +268,20 @@ function MirrorManager({ onSaved }) {
     setShowAddForm(false);
   }
 
+  async function handleCheckAll() {
+    setProbeStatus('probing');
+    try {
+      const updated = await api.probeAll();
+      setMirrors(updated);
+      setStaged(updated);
+      setProbeStatus('done');
+      setTimeout(() => setProbeStatus('idle'), 3000);
+    } catch {
+      setProbeStatus('error');
+      setTimeout(() => setProbeStatus('idle'), 3000);
+    }
+  }
+
   async function handleSaveAll() {
     setSaveStatus('saving');
     setSaveError('');
@@ -269,12 +307,24 @@ function MirrorManager({ onSaved }) {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h2 className="text-white font-semibold text-lg">Mirror List</h2>
-        <button
-          onClick={() => { setShowAddForm(true); setAddError(''); }}
-          className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors"
-        >
-          + Add Mirror
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleCheckAll}
+            disabled={probeStatus === 'probing'}
+            className="px-3 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-gray-300 rounded-lg transition-colors"
+            title="Probe all mirrors server-side: checks HTTP status, 403/451 responses, and block page content"
+          >
+            {probeStatus === 'probing' ? 'Checking…' : 'Check All'}
+          </button>
+          {probeStatus === 'done' && <span className="text-green-400 text-sm">&#10003; Done</span>}
+          {probeStatus === 'error' && <span className="text-red-400 text-sm">Check failed</span>}
+          <button
+            onClick={() => { setShowAddForm(true); setAddError(''); }}
+            className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors"
+          >
+            + Add Mirror
+          </button>
+        </div>
       </div>
 
       {showAddForm && (
@@ -349,31 +399,46 @@ function MirrorManager({ onSaved }) {
   );
 }
 
-// ─── Timeout Config Section ───────────────────────────────────────────────────
+// ─── Configuration Section (probe timeout + alerts) ──────────────────────────
 
-function TimeoutConfig({ onSaved }) {
-  const [value, setValue] = useState('');
+function ConfigSection({ onSaved }) {
+  const [timeout, setTimeout_] = useState('');
+  const [webhookUrl, setWebhookUrl] = useState('');
+  const [threshold, setThreshold] = useState('');
   const [saveStatus, setSaveStatus] = useState('idle');
   const [error, setError] = useState('');
   const saveTimer = useRef(null);
 
   useEffect(() => {
-    api.getConfig()
-      .then((cfg) => setValue(String(cfg.probeTimeoutMs)))
-      .catch(() => {});
+    api.getConfig().then((cfg) => {
+      setTimeout_(String(cfg.probeTimeoutMs ?? 3000));
+      setWebhookUrl(cfg.alertWebhookUrl || '');
+      setThreshold(String(cfg.alertThreshold ?? 3));
+    }).catch(() => {});
   }, []);
 
   async function handleSave(e) {
     e.preventDefault();
     setError('');
-    const ms = parseInt(value, 10);
+
+    const ms = parseInt(timeout, 10);
     if (isNaN(ms) || ms < 500 || ms > 10000) {
-      setError('Value must be between 500 and 10000');
+      setError('Probe timeout must be between 500 and 10000');
       return;
     }
+    const thr = parseInt(threshold, 10);
+    if (isNaN(thr) || thr < 1 || thr > 20) {
+      setError('Alert threshold must be between 1 and 20');
+      return;
+    }
+    if (webhookUrl && !webhookUrl.match(/^https?:\/\/.+/)) {
+      setError('Webhook URL must be a valid http:// or https:// URL');
+      return;
+    }
+
     setSaveStatus('saving');
     try {
-      await api.saveConfig(ms);
+      await api.saveConfig({ probeTimeoutMs: ms, alertWebhookUrl: webhookUrl || null, alertThreshold: thr });
       setSaveStatus('saved');
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(() => setSaveStatus('idle'), 3000);
@@ -385,25 +450,69 @@ function TimeoutConfig({ onSaved }) {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <h2 className="text-white font-semibold text-lg">Timeout Configuration</h2>
-      <form onSubmit={handleSave} className="flex flex-col gap-3">
+    <div className="flex flex-col gap-6">
+      <h2 className="text-white font-semibold text-lg">Configuration</h2>
+      <form onSubmit={handleSave} className="flex flex-col gap-5">
+
+        {/* Probe timeout */}
         <div>
-          <label className="block text-gray-300 text-sm mb-1.5">Probe timeout (ms)</label>
+          <label className="block text-gray-300 text-sm font-medium mb-1.5">
+            Probe timeout (ms)
+          </label>
           <input
             type="number"
             min="500"
             max="10000"
             step="100"
-            value={value}
-            onChange={(e) => { setValue(e.target.value); setError(''); setSaveStatus('idle'); }}
-            className="w-48 px-3 py-2 rounded bg-gray-800 text-white text-sm border border-gray-700 focus:outline-none focus:border-blue-500"
+            value={timeout}
+            onChange={(e) => { setTimeout_(e.target.value); setError(''); setSaveStatus('idle'); }}
+            className="w-40 px-3 py-2 rounded bg-gray-800 text-white text-sm border border-gray-700 focus:outline-none focus:border-blue-500"
           />
-          <p className="text-gray-500 text-xs mt-1.5">
-            How long to wait for each mirror before treating it as blocked by an ISP.
+          <p className="text-gray-500 text-xs mt-1">
+            How long the browser waits for each mirror before treating it as ISP-blocked. Range: 500–10000.
           </p>
         </div>
+
+        <div className="border-t border-gray-700 pt-5">
+          <p className="text-gray-400 text-sm font-medium mb-4">Alerting</p>
+
+          {/* Webhook URL */}
+          <div className="flex flex-col gap-3">
+            <div>
+              <label className="block text-gray-300 text-sm mb-1.5">Alert webhook URL</label>
+              <input
+                type="url"
+                placeholder="https://hooks.slack.com/… or leave blank to disable"
+                value={webhookUrl}
+                onChange={(e) => { setWebhookUrl(e.target.value); setError(''); setSaveStatus('idle'); }}
+                className="w-full px-3 py-2 rounded bg-gray-800 text-white text-sm border border-gray-700 focus:outline-none focus:border-blue-500"
+              />
+              <p className="text-gray-500 text-xs mt-1">
+                A POST request is sent here when healthy mirrors drop to or below the threshold.
+                Works with Slack, Telegram, Make, Zapier, or any webhook receiver.
+              </p>
+            </div>
+
+            {/* Threshold */}
+            <div>
+              <label className="block text-gray-300 text-sm mb-1.5">Alert threshold</label>
+              <input
+                type="number"
+                min="1"
+                max="20"
+                value={threshold}
+                onChange={(e) => { setThreshold(e.target.value); setError(''); setSaveStatus('idle'); }}
+                className="w-24 px-3 py-2 rounded bg-gray-800 text-white text-sm border border-gray-700 focus:outline-none focus:border-blue-500"
+              />
+              <p className="text-gray-500 text-xs mt-1">
+                Fire an alert when healthy enabled mirrors fall to this count or below.
+              </p>
+            </div>
+          </div>
+        </div>
+
         {error && <p className="text-red-400 text-sm">{error}</p>}
+
         <div className="flex items-center gap-3">
           <button
             type="submit"
@@ -412,9 +521,8 @@ function TimeoutConfig({ onSaved }) {
           >
             {saveStatus === 'saving' ? 'Saving…' : 'Save'}
           </button>
-          {saveStatus === 'saved' && (
-            <span className="text-green-400 text-sm">&#10003; Saved</span>
-          )}
+          {saveStatus === 'saved' && <span className="text-green-400 text-sm">&#10003; Saved</span>}
+          {saveStatus === 'error' && <span className="text-red-400 text-sm">Save failed</span>}
         </div>
       </form>
     </div>
@@ -465,7 +573,228 @@ function HistoryLog({ refreshKey }) {
   );
 }
 
-// ─── Redirect Log Section ────────────────────────────────────────────────────
+// ─── Block Pattern Editor ─────────────────────────────────────────────────────
+
+function BlockPatternEditor({ onSaved }) {
+  const [patterns, setPatterns] = useState(null);
+  const [newPattern, setNewPattern] = useState('');
+  const [editingIndex, setEditingIndex] = useState(null);
+  const [editValue, setEditValue] = useState('');
+  const [addError, setAddError] = useState('');
+  const [saveStatus, setSaveStatus] = useState('idle');
+  const [saveError, setSaveError] = useState('');
+  const saveTimer = useRef(null);
+
+  useEffect(() => {
+    api.getConfig()
+      .then((cfg) => setPatterns(cfg.blockPatterns || []))
+      .catch(() => setPatterns([]));
+  }, []);
+
+  function validateRegex(str) {
+    if (!str.trim()) return 'Pattern cannot be empty';
+    try { new RegExp(str); return null; } catch (e) { return `Invalid regex: ${e.message}`; }
+  }
+
+  function handleAdd(e) {
+    e.preventDefault();
+    const err = validateRegex(newPattern);
+    if (err) { setAddError(err); return; }
+    setPatterns((prev) => [...prev, newPattern.trim()]);
+    setNewPattern('');
+    setAddError('');
+  }
+
+  function handleDelete(index) {
+    setPatterns((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function startEdit(index) {
+    setEditingIndex(index);
+    setEditValue(patterns[index]);
+  }
+
+  function commitEdit(index) {
+    const err = validateRegex(editValue);
+    if (err) return; // keep editing
+    setPatterns((prev) => prev.map((p, i) => (i === index ? editValue.trim() : p)));
+    setEditingIndex(null);
+  }
+
+  async function handleSave() {
+    setSaveStatus('saving');
+    setSaveError('');
+    try {
+      await api.saveBlockPatterns(patterns);
+      setSaveStatus('saved');
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(() => setSaveStatus('idle'), 3000);
+      if (onSaved) onSaved();
+    } catch (err) {
+      setSaveStatus('error');
+      setSaveError(err.message);
+    }
+  }
+
+  if (patterns === null) return <p className="text-gray-500 text-sm">Loading…</p>;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div>
+        <h2 className="text-white font-semibold text-lg">Block Page Detection Patterns</h2>
+        <p className="text-gray-500 text-xs mt-1">
+          JavaScript-compatible regular expressions (case-insensitive). The server scans the first
+          50 KB of each mirror's response body during a server-side probe. A match marks the mirror
+          as <span className="text-red-400 font-mono">blocked</span>.
+        </p>
+      </div>
+
+      {/* Pattern list */}
+      <div className="flex flex-col gap-1.5">
+        {patterns.length === 0 && (
+          <p className="text-gray-500 text-sm">No patterns configured.</p>
+        )}
+        {patterns.map((p, i) => (
+          <div key={i} className="flex items-center gap-2 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2">
+            {editingIndex === i ? (
+              <>
+                <input
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(i); if (e.key === 'Escape') setEditingIndex(null); }}
+                  className="flex-1 bg-gray-900 text-white font-mono text-xs px-2 py-1 rounded border border-blue-500 focus:outline-none"
+                  autoFocus
+                />
+                <button onClick={() => commitEdit(i)} className="text-xs text-blue-400 hover:text-blue-300 px-1">Save</button>
+                <button onClick={() => setEditingIndex(null)} className="text-xs text-gray-500 hover:text-gray-300 px-1">Cancel</button>
+              </>
+            ) : (
+              <>
+                <code className="flex-1 text-green-300 text-xs font-mono break-all">{p}</code>
+                <button onClick={() => startEdit(i)} className="text-gray-500 hover:text-blue-400 transition-colors text-xs px-1" title="Edit">
+                  Edit
+                </button>
+                <button onClick={() => handleDelete(i)} className="text-gray-500 hover:text-red-400 transition-colors" title="Delete">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/>
+                  </svg>
+                </button>
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Add new pattern */}
+      <form onSubmit={handleAdd} className="flex gap-2 items-start">
+        <div className="flex-1">
+          <input
+            type="text"
+            value={newPattern}
+            onChange={(e) => { setNewPattern(e.target.value); setAddError(''); }}
+            placeholder="e.g.  доступ.*ограничен  or  blocked.*court"
+            className="w-full px-3 py-2 rounded bg-gray-800 text-white font-mono text-sm border border-gray-700 focus:outline-none focus:border-blue-500"
+          />
+          {addError && <p className="text-red-400 text-xs mt-1">{addError}</p>}
+        </div>
+        <button type="submit" className="px-3 py-2 text-sm bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors whitespace-nowrap">
+          + Add
+        </button>
+      </form>
+
+      {/* Save */}
+      <div className="flex items-center gap-3 pt-1">
+        <button
+          onClick={handleSave}
+          disabled={saveStatus === 'saving'}
+          className="px-4 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors"
+        >
+          {saveStatus === 'saving' ? 'Saving…' : 'Save Patterns'}
+        </button>
+        {saveStatus === 'saved' && <span className="text-green-400 text-sm">&#10003; Saved</span>}
+        {saveStatus === 'error' && <span className="text-red-400 text-sm">{saveError}</span>}
+      </div>
+    </div>
+  );
+}
+
+// ─── Redirect Log Section ─────────────────────────────────────────────────────
+
+function MirrorResultRow({ r }) {
+  return (
+    <div className="flex items-start gap-2 py-0.5">
+      <span className={`mt-0.5 shrink-0 ${r.healthy ? 'text-green-400' : 'text-red-400'}`}>
+        {r.healthy ? '✓' : '✗'}
+      </span>
+      <span className="text-gray-400 font-mono text-xs truncate flex-1" title={r.url}>
+        {r.url ? new URL(r.url).hostname : r.id}
+      </span>
+      {!r.healthy && r.reason && (
+        <span className="text-yellow-600 text-xs shrink-0 max-w-xs truncate" title={r.reason}>
+          {r.reason}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function RedirectLogRow({ entry }) {
+  const [expanded, setExpanded] = useState(false);
+  const hasDetails = Array.isArray(entry.mirrorResults) && entry.mirrorResults.length > 0;
+
+  return (
+    <>
+      <tr
+        className={`border-b border-gray-800 align-top ${hasDetails ? 'cursor-pointer hover:bg-gray-800/40' : ''}`}
+        onClick={() => hasDetails && setExpanded((v) => !v)}
+        title={hasDetails ? 'Click to expand mirror details' : undefined}
+      >
+        <td className="py-2 pr-3 text-gray-400 whitespace-nowrap">
+          {new Date(entry.timestamp).toLocaleString()}
+        </td>
+        <td className="py-2 pr-3 text-gray-400 font-mono whitespace-nowrap">
+          {entry.ip}
+        </td>
+        <td className="py-2 pr-3 whitespace-nowrap">
+          {entry.result === 'redirected' ? (
+            <span className="text-green-400">&#10003; redirected</span>
+          ) : (
+            <span className="text-red-400">&#10007; all failed</span>
+          )}
+        </td>
+        <td className="py-2 pr-3 text-gray-400 max-w-xs">
+          {entry.redirectedTo ? (
+            <span title={entry.redirectedTo} className="font-mono">
+              {new URL(entry.redirectedTo).hostname}
+            </span>
+          ) : (
+            <span className="text-gray-600">—</span>
+          )}
+        </td>
+        <td className="py-2 pr-2 text-gray-500 font-mono max-w-xs truncate">
+          {entry.entryParams || <span className="text-gray-600">—</span>}
+        </td>
+        <td className="py-2 text-gray-600 text-xs whitespace-nowrap">
+          {hasDetails && (
+            <span className="select-none">{expanded ? '▲' : '▼'} {entry.mirrorResults.length}</span>
+          )}
+        </td>
+      </tr>
+      {expanded && hasDetails && (
+        <tr className="border-b border-gray-800 bg-gray-900/60">
+          <td colSpan={6} className="px-4 py-3">
+            <p className="text-gray-500 text-xs mb-2 font-medium uppercase tracking-wider">Per-mirror probe results</p>
+            <div className="flex flex-col gap-0.5">
+              {entry.mirrorResults.map((r, i) => (
+                <MirrorResultRow key={i} r={r} />
+              ))}
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
 
 function RedirectLog() {
   const [log, setLog] = useState([]);
@@ -490,7 +819,10 @@ function RedirectLog() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-white font-semibold text-lg">Redirect Log</h2>
+        <div>
+          <h2 className="text-white font-semibold text-lg">Redirect Log</h2>
+          <p className="text-gray-500 text-xs mt-0.5">Click a row to expand per-mirror probe details.</p>
+        </div>
         <button
           onClick={load}
           disabled={loading}
@@ -499,9 +831,6 @@ function RedirectLog() {
           {loading ? 'Loading…' : 'Refresh'}
         </button>
       </div>
-      <p className="text-gray-500 text-xs">
-        One entry per visitor. Newest first. Capped at 500 entries.
-      </p>
 
       {loading && log.length === 0 ? (
         <p className="text-gray-500 text-sm">Loading…</p>
@@ -516,38 +845,13 @@ function RedirectLog() {
                 <th className="pb-2 pr-3 font-medium">IP</th>
                 <th className="pb-2 pr-3 font-medium">Result</th>
                 <th className="pb-2 pr-3 font-medium">Redirected To</th>
-                <th className="pb-2 font-medium">Entry Params</th>
+                <th className="pb-2 pr-2 font-medium">Entry Params</th>
+                <th className="pb-2 font-medium">Mirrors</th>
               </tr>
             </thead>
             <tbody>
               {log.map((entry, i) => (
-                <tr key={i} className="border-b border-gray-800 last:border-0 align-top">
-                  <td className="py-2 pr-3 text-gray-400 whitespace-nowrap">
-                    {new Date(entry.timestamp).toLocaleString()}
-                  </td>
-                  <td className="py-2 pr-3 text-gray-400 font-mono whitespace-nowrap">
-                    {entry.ip}
-                  </td>
-                  <td className="py-2 pr-3 whitespace-nowrap">
-                    {entry.result === 'redirected' ? (
-                      <span className="text-green-400">&#10003; redirected</span>
-                    ) : (
-                      <span className="text-red-400">&#10007; all failed</span>
-                    )}
-                  </td>
-                  <td className="py-2 pr-3 text-gray-400 max-w-xs truncate">
-                    {entry.redirectedTo ? (
-                      <span title={entry.redirectedTo} className="font-mono">
-                        {new URL(entry.redirectedTo).hostname}
-                      </span>
-                    ) : (
-                      <span className="text-gray-600">—</span>
-                    )}
-                  </td>
-                  <td className="py-2 text-gray-500 font-mono max-w-xs truncate">
-                    {entry.entryParams || <span className="text-gray-600">—</span>}
-                  </td>
-                </tr>
+                <RedirectLogRow key={i} entry={entry} />
               ))}
             </tbody>
           </table>
@@ -591,15 +895,20 @@ function Dashboard({ onLogout }) {
 
         {/* Section 2 */}
         <section className="bg-gray-900 rounded-xl p-6">
-          <TimeoutConfig onSaved={refreshHistory} />
+          <ConfigSection onSaved={refreshHistory} />
         </section>
 
         {/* Section 3 */}
         <section className="bg-gray-900 rounded-xl p-6">
-          <HistoryLog refreshKey={historyKey} />
+          <BlockPatternEditor onSaved={refreshHistory} />
         </section>
 
         {/* Section 4 */}
+        <section className="bg-gray-900 rounded-xl p-6">
+          <HistoryLog refreshKey={historyKey} />
+        </section>
+
+        {/* Section 5 */}
         <section className="bg-gray-900 rounded-xl p-6">
           <RedirectLog />
         </section>

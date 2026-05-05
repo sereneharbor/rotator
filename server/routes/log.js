@@ -8,7 +8,7 @@ const MAX_LOG_ENTRIES = 500;
 
 // Public — called by the redirect controller (fire-and-forget, keepalive)
 router.post('/', (req, res) => {
-  const { result, redirectedTo, mirrorId, entryParams } = req.body;
+  const { result, redirectedTo, mirrorId, entryParams, mirrorResults } = req.body;
 
   if (!result || !['redirected', 'all_failed'].includes(result)) {
     return res.status(400).json({ error: 'Invalid result value' });
@@ -19,6 +19,16 @@ router.post('/', (req, res) => {
     req.socket.remoteAddress ||
     'unknown';
 
+  // Sanitise mirrorResults: keep only expected fields, cap array length
+  const sanitisedResults = Array.isArray(mirrorResults)
+    ? mirrorResults.slice(0, 30).map((r) => ({
+        id: r.id || null,
+        url: r.url || null,
+        healthy: !!r.healthy,
+        reason: typeof r.reason === 'string' ? r.reason.slice(0, 200) : null,
+      }))
+    : [];
+
   const entry = {
     timestamp: new Date().toISOString(),
     ip,
@@ -27,6 +37,7 @@ router.post('/', (req, res) => {
     redirectedTo: redirectedTo || null,
     mirrorId: mirrorId || null,
     entryParams: entryParams || '',
+    mirrorResults: sanitisedResults,
   };
 
   const store = readStore();
