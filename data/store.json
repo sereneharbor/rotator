@@ -9,7 +9,7 @@
       "label": "yohoslot2.com",
       "enabled": true,
       "preValidated": false,
-      "preValidatedAt": "2026-05-05T07:49:09.533Z",
+      "preValidatedAt": "2026-05-05T08:04:28.023Z",
       "pollStatus": "blocked",
       "pollReason": "HTTP 403 response",
       "pollProxy": null
@@ -23,7 +23,7 @@
       "label": "yohoslot3.com",
       "enabled": true,
       "preValidated": false,
-      "preValidatedAt": "2026-05-05T07:49:09.533Z",
+      "preValidatedAt": "2026-05-05T08:04:28.023Z",
       "pollStatus": "blocked",
       "pollReason": "HTTP 403 response",
       "pollProxy": null
@@ -37,7 +37,7 @@
       "label": "https://www.google.com",
       "enabled": true,
       "preValidated": true,
-      "preValidatedAt": "2026-05-05T07:49:09.533Z",
+      "preValidatedAt": "2026-05-05T08:04:28.023Z",
       "pollStatus": "healthy",
       "pollReason": null,
       "pollProxy": null
@@ -51,7 +51,7 @@
       "label": "https://www.razed.com",
       "enabled": true,
       "preValidated": false,
-      "preValidatedAt": "2026-05-05T07:49:09.533Z",
+      "preValidatedAt": "2026-05-05T08:04:28.023Z",
       "pollStatus": "blocked",
       "pollReason": "HTTP 403 response",
       "pollProxy": null
@@ -65,7 +65,7 @@
       "label": "https://www.terragon.tech",
       "enabled": true,
       "preValidated": false,
-      "preValidatedAt": "2026-05-05T07:49:09.533Z",
+      "preValidatedAt": "2026-05-05T08:04:28.023Z",
       "pollStatus": "blocked",
       "pollReason": "HTTP 403 response",
       "pollProxy": null
@@ -79,7 +79,7 @@
       "label": "https://www.cnn.com",
       "enabled": true,
       "preValidated": true,
-      "preValidatedAt": "2026-05-05T07:49:09.533Z",
+      "preValidatedAt": "2026-05-05T08:04:28.023Z",
       "pollStatus": "healthy",
       "pollReason": null,
       "pollProxy": null
@@ -107,8 +107,8 @@
       "blocked.*court.*order",
       "unavailable.*your.*region"
     ],
-    "lastPollAt": "2026-05-05T07:49:09.533Z",
-    "nextPollAt": "2026-05-05T08:19:09.536Z",
+    "lastPollAt": "2026-05-05T08:04:28.023Z",
+    "nextPollAt": "2026-05-05T08:34:28.028Z",
     "updatedAt": "2026-05-04T14:35:51.743Z"
   },
   "history": [
