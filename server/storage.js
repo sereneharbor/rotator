@@ -26,9 +26,13 @@ const DEFAULT_STORE = {
   mirrors: [],
   config: {
     probeTimeoutMs: 3000,
+    pollIntervalMs: 1800000, // 30 minutes
+    proxies: [],             // array of proxy URLs e.g. 'http://user:pass@host:port'
     alertWebhookUrl: null,
     alertThreshold: 3,
     blockPatterns: DEFAULT_BLOCK_PATTERNS,
+    lastPollAt: null,
+    nextPollAt: null,
     updatedAt: new Date().toISOString(),
   },
   history: [],
@@ -40,9 +44,15 @@ module.exports.DEFAULT_BLOCK_PATTERNS = DEFAULT_BLOCK_PATTERNS;
 function readStore() {
   try {
     const raw = fs.readFileSync(STORE_PATH, 'utf8');
-    return { ...DEFAULT_STORE, ...JSON.parse(raw) };
+    const parsed = JSON.parse(raw);
+    // Deep-merge config so new fields get their defaults on existing installs
+    return {
+      ...DEFAULT_STORE,
+      ...parsed,
+      config: { ...DEFAULT_STORE.config, ...parsed.config },
+    };
   } catch {
-    return { ...DEFAULT_STORE };
+    return { ...DEFAULT_STORE, config: { ...DEFAULT_STORE.config } };
   }
 }
 

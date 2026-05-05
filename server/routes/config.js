@@ -10,7 +10,7 @@ router.get('/', requireAuth, (req, res) => {
 });
 
 router.post('/', requireAuth, (req, res) => {
-  const { probeTimeoutMs, alertWebhookUrl, alertThreshold } = req.body;
+  const { probeTimeoutMs, pollIntervalMs, proxies, alertWebhookUrl, alertThreshold } = req.body;
   const store = readStore();
   const updated = { ...store.config };
   const errors = [];
@@ -25,6 +25,44 @@ router.post('/', requireAuth, (req, res) => {
       errors.push('probeTimeoutMs must be an integer between 500 and 10000');
     } else {
       updated.probeTimeoutMs = probeTimeoutMs;
+    }
+  }
+
+  if (pollIntervalMs !== undefined) {
+    if (
+      typeof pollIntervalMs !== 'number' ||
+      !Number.isInteger(pollIntervalMs) ||
+      pollIntervalMs < 60000 ||
+      pollIntervalMs > 86400000
+    ) {
+      errors.push('pollIntervalMs must be an integer between 60000 (1 min) and 86400000 (24 h)');
+    } else {
+      updated.pollIntervalMs = pollIntervalMs;
+    }
+  }
+
+  if (proxies !== undefined) {
+    if (!Array.isArray(proxies)) {
+      errors.push('proxies must be an array of URL strings');
+    } else {
+      const invalid = [];
+      for (const p of proxies) {
+        if (typeof p !== 'string' || p.trim() === '') {
+          invalid.push(String(p));
+          continue;
+        }
+        try {
+          const u = new URL(p.trim());
+          if (!['http:', 'https:'].includes(u.protocol)) throw new Error();
+        } catch {
+          invalid.push(p);
+        }
+      }
+      if (invalid.length) {
+        errors.push(`Invalid proxy URLs (must be http:// or https://): ${invalid.join(', ')}`);
+      } else {
+        updated.proxies = proxies.map((p) => p.trim());
+      }
     }
   }
 
@@ -88,6 +126,8 @@ router.post('/', requireAuth, (req, res) => {
 
   const parts = [];
   if (probeTimeoutMs !== undefined) parts.push(`probeTimeoutMs=${probeTimeoutMs}ms`);
+  if (pollIntervalMs !== undefined) parts.push(`pollIntervalMs=${pollIntervalMs}ms`);
+  if (proxies !== undefined) parts.push(`proxies updated (${proxies.length} proxy/proxies)`);
   if (alertWebhookUrl !== undefined) parts.push(`alertWebhookUrl=${alertWebhookUrl || 'cleared'}`);
   if (alertThreshold !== undefined) parts.push(`alertThreshold=${alertThreshold}`);
   if (blockPatterns !== undefined) parts.push(`blockPatterns updated (${blockPatterns.length} patterns)`);

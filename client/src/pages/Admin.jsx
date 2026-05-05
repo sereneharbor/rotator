@@ -97,22 +97,40 @@ function LoginScreen({ onLogin }) {
 
 // ─── Sortable Mirror Row ──────────────────────────────────────────────────────
 
-const SERVER_STATUS_BADGE = {
-  healthy: { label: 'healthy', cls: 'bg-green-900/50 text-green-400 border-green-700' },
-  blocked: { label: 'blocked', cls: 'bg-red-900/50 text-red-400 border-red-700' },
-  timeout: { label: 'timeout', cls: 'bg-yellow-900/50 text-yellow-400 border-yellow-700' },
-  error:   { label: 'error',   cls: 'bg-orange-900/50 text-orange-400 border-orange-700' },
+const STATUS_BADGE_STYLES = {
+  healthy: 'bg-green-900/50 text-green-400 border-green-700',
+  blocked: 'bg-red-900/50 text-red-400 border-red-700',
+  timeout: 'bg-yellow-900/50 text-yellow-400 border-yellow-700',
+  error:   'bg-orange-900/50 text-orange-400 border-orange-700',
 };
 
 function ServerStatusBadge({ status, reason }) {
   if (!status) return <span className="text-xs text-gray-600">not checked</span>;
-  const badge = SERVER_STATUS_BADGE[status] || { label: status, cls: 'bg-gray-700 text-gray-400 border-gray-600' };
+  const cls = STATUS_BADGE_STYLES[status] || 'bg-gray-700 text-gray-400 border-gray-600';
   return (
-    <span
-      title={reason || undefined}
-      className={`text-xs px-1.5 py-0.5 rounded border font-mono ${badge.cls}`}
-    >
-      {badge.label}
+    <span title={reason || undefined} className={`text-xs px-1.5 py-0.5 rounded border font-mono ${cls}`}>
+      {status}
+    </span>
+  );
+}
+
+function PollBadge({ preValidated, pollStatus, pollReason, pollProxy }) {
+  if (preValidated === null || preValidated === undefined) {
+    return <span className="text-xs text-gray-600 italic">not polled</span>;
+  }
+  if (preValidated === true) {
+    const tip = pollProxy ? `via proxy: ${pollProxy}` : 'direct connection';
+    return (
+      <span title={tip} className="text-xs px-1.5 py-0.5 rounded border font-mono bg-blue-900/50 text-blue-300 border-blue-700">
+        pre-validated
+      </span>
+    );
+  }
+  const cls = STATUS_BADGE_STYLES[pollStatus] || 'bg-gray-700 text-gray-400 border-gray-600';
+  const tip = [pollReason, pollProxy ? `via proxy: ${pollProxy}` : null].filter(Boolean).join(' | ');
+  return (
+    <span title={tip || undefined} className={`text-xs px-1.5 py-0.5 rounded border font-mono ${cls}`}>
+      {pollStatus || 'failed'}
     </span>
   );
 }
@@ -150,10 +168,16 @@ function SortableMirrorRow({ mirror, onToggle, onDelete }) {
         </svg>
       </button>
 
-      {/* Label + URL + server status */}
+      {/* Label + URL + status badges */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <p className="text-white text-sm font-medium truncate">{mirror.label || '(no label)'}</p>
+          <PollBadge
+            preValidated={mirror.preValidated}
+            pollStatus={mirror.pollStatus}
+            pollReason={mirror.pollReason}
+            pollProxy={mirror.pollProxy}
+          />
           <ServerStatusBadge status={mirror.serverStatus} reason={mirror.serverStatusReason} />
         </div>
         <p className="text-gray-400 text-xs truncate">{mirror.url}</p>
@@ -189,6 +213,61 @@ function SortableMirrorRow({ mirror, onToggle, onDelete }) {
   );
 }
 
+// ─── Poll Status Bar ──────────────────────────────────────────────────────────
+
+function formatRelative(isoString) {
+  if (!isoString) return null;
+  const diff = Date.now() - new Date(isoString).getTime();
+  if (diff < 60000) return 'just now';
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  return `${Math.floor(mins / 60)}h ${mins % 60}m ago`;
+}
+
+function formatIn(isoString) {
+  if (!isoString) return null;
+  const diff = new Date(isoString).getTime() - Date.now();
+  if (diff <= 0) return 'soon';
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `in ${mins}m`;
+  return `in ${Math.floor(mins / 60)}h ${mins % 60}m`;
+}
+
+function PollStatusBar({ pollStatus, onPollNow, polling }) {
+  if (!pollStatus) return null;
+  const { lastPollAt, nextPollAt, summary, isRunning } = pollStatus;
+  const running = isRunning || polling;
+
+  return (
+    <div className="flex items-center gap-4 px-3 py-2 bg-gray-800/60 border border-gray-700 rounded-lg text-xs text-gray-400">
+      <div className="flex items-center gap-1.5">
+        <span className={`w-1.5 h-1.5 rounded-full ${running ? 'bg-yellow-400 animate-pulse' : 'bg-gray-600'}`} />
+        <span>{running ? 'Polling…' : 'Scheduler active'}</span>
+      </div>
+      {summary && (
+        <span className="text-gray-300">
+          <span className="text-blue-400 font-medium">{summary.preValidated}</span>
+          <span className="text-gray-500">/{summary.total}</span>
+          <span className="ml-1">pre-validated</span>
+        </span>
+      )}
+      {lastPollAt && (
+        <span>Last: <span className="text-gray-300">{formatRelative(lastPollAt)}</span></span>
+      )}
+      {nextPollAt && !running && (
+        <span>Next: <span className="text-gray-300">{formatIn(nextPollAt)}</span></span>
+      )}
+      <button
+        onClick={onPollNow}
+        disabled={running}
+        className="ml-auto px-2.5 py-1 bg-blue-700 hover:bg-blue-600 disabled:opacity-40 text-white rounded transition-colors"
+      >
+        {running ? 'Polling…' : 'Poll Now'}
+      </button>
+    </div>
+  );
+}
+
 // ─── Mirror Manager Section ───────────────────────────────────────────────────
 
 function MirrorManager({ onSaved }) {
@@ -201,6 +280,8 @@ function MirrorManager({ onSaved }) {
   const [saveStatus, setSaveStatus] = useState('idle'); // idle | saving | saved | error
   const [saveError, setSaveError] = useState('');
   const [probeStatus, setProbeStatus] = useState('idle'); // idle | probing | done | error
+  const [pollStatus, setPollStatus] = useState(null);
+  const [polling, setPolling] = useState(false);
   const saveTimer = useRef(null);
 
   const sensors = useSensors(
@@ -210,18 +291,40 @@ function MirrorManager({ onSaved }) {
 
   useEffect(() => {
     loadMirrors();
+    loadPollStatus();
   }, []);
 
   async function loadMirrors() {
     try {
-      // GET /api/mirrors returns the full list (with labels + disabled) when
-      // a valid Bearer token is present; the public response strips that data.
       const full = await api.getMirrors();
       setMirrors(full);
       setStaged(full);
     } catch {
       setMirrors([]);
       setStaged([]);
+    }
+  }
+
+  async function loadPollStatus() {
+    try {
+      const status = await api.getPollStatus();
+      setPollStatus(status);
+    } catch {
+      // non-critical
+    }
+  }
+
+  async function handlePollNow() {
+    setPolling(true);
+    try {
+      await api.triggerPoll();
+      // Reload mirrors and poll status after poll completes
+      await loadMirrors();
+      await loadPollStatus();
+    } catch {
+      // ignore
+    } finally {
+      setPolling(false);
     }
   }
 
@@ -312,7 +415,7 @@ function MirrorManager({ onSaved }) {
             onClick={handleCheckAll}
             disabled={probeStatus === 'probing'}
             className="px-3 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-gray-300 rounded-lg transition-colors"
-            title="Probe all mirrors server-side: checks HTTP status, 403/451 responses, and block page content"
+            title="Direct server-side probe: checks HTTP status, 403/451 responses, and block page content (no proxy)"
           >
             {probeStatus === 'probing' ? 'Checking…' : 'Check All'}
           </button>
@@ -326,6 +429,8 @@ function MirrorManager({ onSaved }) {
           </button>
         </div>
       </div>
+
+      <PollStatusBar pollStatus={pollStatus} onPollNow={handlePollNow} polling={polling} />
 
       {showAddForm && (
         <form onSubmit={handleAddSubmit} className="flex flex-col gap-3 bg-gray-800 border border-gray-700 rounded-lg p-4">
@@ -399,10 +504,14 @@ function MirrorManager({ onSaved }) {
   );
 }
 
-// ─── Configuration Section (probe timeout + alerts) ──────────────────────────
+// ─── Configuration Section ───────────────────────────────────────────────────
 
 function ConfigSection({ onSaved }) {
   const [timeout, setTimeout_] = useState('');
+  const [pollInterval, setPollInterval] = useState('');
+  const [proxies, setProxies] = useState([]);
+  const [newProxy, setNewProxy] = useState('');
+  const [proxyError, setProxyError] = useState('');
   const [webhookUrl, setWebhookUrl] = useState('');
   const [threshold, setThreshold] = useState('');
   const [saveStatus, setSaveStatus] = useState('idle');
@@ -412,10 +521,34 @@ function ConfigSection({ onSaved }) {
   useEffect(() => {
     api.getConfig().then((cfg) => {
       setTimeout_(String(cfg.probeTimeoutMs ?? 3000));
+      setPollInterval(String(Math.round((cfg.pollIntervalMs ?? 1800000) / 60000)));
+      setProxies(cfg.proxies || []);
       setWebhookUrl(cfg.alertWebhookUrl || '');
       setThreshold(String(cfg.alertThreshold ?? 3));
     }).catch(() => {});
   }, []);
+
+  function handleAddProxy(e) {
+    e.preventDefault();
+    setProxyError('');
+    const url = newProxy.trim();
+    if (!url) return;
+    try {
+      const u = new URL(url);
+      if (!['http:', 'https:'].includes(u.protocol)) throw new Error();
+    } catch {
+      setProxyError('Must be a valid http:// or https:// URL');
+      return;
+    }
+    setProxies((prev) => [...prev, url]);
+    setNewProxy('');
+    setSaveStatus('idle');
+  }
+
+  function handleRemoveProxy(index) {
+    setProxies((prev) => prev.filter((_, i) => i !== index));
+    setSaveStatus('idle');
+  }
 
   async function handleSave(e) {
     e.preventDefault();
@@ -423,7 +556,12 @@ function ConfigSection({ onSaved }) {
 
     const ms = parseInt(timeout, 10);
     if (isNaN(ms) || ms < 500 || ms > 10000) {
-      setError('Probe timeout must be between 500 and 10000');
+      setError('Probe timeout must be between 500 and 10000 ms');
+      return;
+    }
+    const pollMs = parseInt(pollInterval, 10) * 60000;
+    if (isNaN(pollMs) || pollMs < 60000 || pollMs > 86400000) {
+      setError('Poll interval must be between 1 and 1440 minutes');
       return;
     }
     const thr = parseInt(threshold, 10);
@@ -438,7 +576,13 @@ function ConfigSection({ onSaved }) {
 
     setSaveStatus('saving');
     try {
-      await api.saveConfig({ probeTimeoutMs: ms, alertWebhookUrl: webhookUrl || null, alertThreshold: thr });
+      await api.saveConfig({
+        probeTimeoutMs: ms,
+        pollIntervalMs: pollMs,
+        proxies,
+        alertWebhookUrl: webhookUrl || null,
+        alertThreshold: thr,
+      });
       setSaveStatus('saved');
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(() => setSaveStatus('idle'), 3000);
@@ -456,27 +600,88 @@ function ConfigSection({ onSaved }) {
 
         {/* Probe timeout */}
         <div>
-          <label className="block text-gray-300 text-sm font-medium mb-1.5">
-            Probe timeout (ms)
-          </label>
+          <label className="block text-gray-300 text-sm font-medium mb-1.5">Probe timeout (ms)</label>
           <input
-            type="number"
-            min="500"
-            max="10000"
-            step="100"
+            type="number" min="500" max="10000" step="100"
             value={timeout}
             onChange={(e) => { setTimeout_(e.target.value); setError(''); setSaveStatus('idle'); }}
             className="w-40 px-3 py-2 rounded bg-gray-800 text-white text-sm border border-gray-700 focus:outline-none focus:border-blue-500"
           />
           <p className="text-gray-500 text-xs mt-1">
-            How long the browser waits for each mirror before treating it as ISP-blocked. Range: 500–10000.
+            How long the visitor's browser waits per mirror before treating it as blocked. Range: 500–10000.
           </p>
         </div>
 
+        {/* Scheduled polling */}
+        <div className="border-t border-gray-700 pt-5">
+          <p className="text-gray-400 text-sm font-medium mb-4">Scheduled Polling</p>
+          <div className="flex flex-col gap-4">
+            <div>
+              <label className="block text-gray-300 text-sm mb-1.5">Poll interval (minutes)</label>
+              <input
+                type="number" min="1" max="1440"
+                value={pollInterval}
+                onChange={(e) => { setPollInterval(e.target.value); setError(''); setSaveStatus('idle'); }}
+                className="w-32 px-3 py-2 rounded bg-gray-800 text-white text-sm border border-gray-700 focus:outline-none focus:border-blue-500"
+              />
+              <p className="text-gray-500 text-xs mt-1">
+                How often the server polls mirrors through proxies to update pre-validation status. Default: 30 minutes.
+              </p>
+            </div>
+
+            {/* Proxy list */}
+            <div>
+              <label className="block text-gray-300 text-sm mb-2">Proxy servers</label>
+              <div className="flex flex-col gap-1.5 mb-2">
+                {proxies.length === 0 && (
+                  <p className="text-gray-600 text-xs italic">No proxies configured — polls run directly from the server.</p>
+                )}
+                {proxies.map((p, i) => (
+                  <div key={i} className="flex items-center gap-2 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2">
+                    <code className="flex-1 text-blue-300 text-xs font-mono truncate">{p}</code>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveProxy(i)}
+                      className="text-gray-500 hover:text-red-400 transition-colors shrink-0"
+                      aria-label="Remove proxy"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/>
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2 items-start">
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    value={newProxy}
+                    onChange={(e) => { setNewProxy(e.target.value); setProxyError(''); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleAddProxy(e); }}
+                    placeholder="http://user:pass@host:port"
+                    className="w-full px-3 py-2 rounded bg-gray-800 text-white font-mono text-sm border border-gray-700 focus:outline-none focus:border-blue-500"
+                  />
+                  {proxyError && <p className="text-red-400 text-xs mt-1">{proxyError}</p>}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddProxy}
+                  className="px-3 py-2 text-sm bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors whitespace-nowrap"
+                >
+                  + Add
+                </button>
+              </div>
+              <p className="text-gray-500 text-xs mt-1.5">
+                Proxies are assigned round-robin across mirrors per poll cycle. HTTP and HTTPS proxies supported.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Alerting */}
         <div className="border-t border-gray-700 pt-5">
           <p className="text-gray-400 text-sm font-medium mb-4">Alerting</p>
-
-          {/* Webhook URL */}
           <div className="flex flex-col gap-3">
             <div>
               <label className="block text-gray-300 text-sm mb-1.5">Alert webhook URL</label>
@@ -488,24 +693,19 @@ function ConfigSection({ onSaved }) {
                 className="w-full px-3 py-2 rounded bg-gray-800 text-white text-sm border border-gray-700 focus:outline-none focus:border-blue-500"
               />
               <p className="text-gray-500 text-xs mt-1">
-                A POST request is sent here when healthy mirrors drop to or below the threshold.
-                Works with Slack, Telegram, Make, Zapier, or any webhook receiver.
+                POSTed when pre-validated mirrors drop to or below the threshold. Works with Slack, Telegram, Make, Zapier, etc.
               </p>
             </div>
-
-            {/* Threshold */}
             <div>
               <label className="block text-gray-300 text-sm mb-1.5">Alert threshold</label>
               <input
-                type="number"
-                min="1"
-                max="20"
+                type="number" min="1" max="20"
                 value={threshold}
                 onChange={(e) => { setThreshold(e.target.value); setError(''); setSaveStatus('idle'); }}
                 className="w-24 px-3 py-2 rounded bg-gray-800 text-white text-sm border border-gray-700 focus:outline-none focus:border-blue-500"
               />
               <p className="text-gray-500 text-xs mt-1">
-                Fire an alert when healthy enabled mirrors fall to this count or below.
+                Fire an alert when pre-validated mirrors fall to this count or below.
               </p>
             </div>
           </div>

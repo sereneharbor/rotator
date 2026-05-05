@@ -7,7 +7,12 @@
       "id": "m1777904700044",
       "url": "https://www.yohoslot2.com",
       "label": "yohoslot2.com",
-      "enabled": true
+      "enabled": true,
+      "preValidated": false,
+      "preValidatedAt": "2026-05-05T07:49:09.533Z",
+      "pollStatus": "blocked",
+      "pollReason": "HTTP 403 response",
+      "pollProxy": null
     },
     {
       "serverStatus": "blocked",
@@ -16,7 +21,12 @@
       "id": "m1777904711602",
       "url": "https://www.yohoslot3.com",
       "label": "yohoslot3.com",
-      "enabled": true
+      "enabled": true,
+      "preValidated": false,
+      "preValidatedAt": "2026-05-05T07:49:09.533Z",
+      "pollStatus": "blocked",
+      "pollReason": "HTTP 403 response",
+      "pollProxy": null
     },
     {
       "serverStatus": "healthy",
@@ -25,7 +35,12 @@
       "id": "m1777906218764",
       "url": "https://www.google.com",
       "label": "https://www.google.com",
-      "enabled": true
+      "enabled": true,
+      "preValidated": true,
+      "preValidatedAt": "2026-05-05T07:49:09.533Z",
+      "pollStatus": "healthy",
+      "pollReason": null,
+      "pollProxy": null
     },
     {
       "serverStatus": "blocked",
@@ -34,7 +49,12 @@
       "id": "m1777950994736",
       "url": "https://www.razed.com",
       "label": "https://www.razed.com",
-      "enabled": true
+      "enabled": true,
+      "preValidated": false,
+      "preValidatedAt": "2026-05-05T07:49:09.533Z",
+      "pollStatus": "blocked",
+      "pollReason": "HTTP 403 response",
+      "pollProxy": null
     },
     {
       "serverStatus": "blocked",
@@ -43,7 +63,12 @@
       "id": "m1777951050008",
       "url": "https://www.terragon.tech",
       "label": "https://www.terragon.tech",
-      "enabled": true
+      "enabled": true,
+      "preValidated": false,
+      "preValidatedAt": "2026-05-05T07:49:09.533Z",
+      "pollStatus": "blocked",
+      "pollReason": "HTTP 403 response",
+      "pollProxy": null
     },
     {
       "serverStatus": "healthy",
@@ -52,11 +77,38 @@
       "id": "m1777951078627",
       "url": "https://www.cnn.com",
       "label": "https://www.cnn.com",
-      "enabled": true
+      "enabled": true,
+      "preValidated": true,
+      "preValidatedAt": "2026-05-05T07:49:09.533Z",
+      "pollStatus": "healthy",
+      "pollReason": null,
+      "pollProxy": null
     }
   ],
   "config": {
     "probeTimeoutMs": 7000,
+    "pollIntervalMs": 1800000,
+    "proxies": [],
+    "alertWebhookUrl": null,
+    "alertThreshold": 3,
+    "blockPatterns": [
+      "доступ.*ограничен",
+      "ограничен.*доступ",
+      "сайт.*заблокирован",
+      "ресурс.*заблокирован",
+      "заблокирован.*роскомнадзор",
+      "по\\s+решению\\s+суда",
+      "по\\s+решению.*органа",
+      "eais\\.rkn\\.gov\\.ru",
+      "rkn\\.gov\\.ru",
+      "roskomnadzor",
+      "access.*denied.*legal",
+      "legally.*unavailable",
+      "blocked.*court.*order",
+      "unavailable.*your.*region"
+    ],
+    "lastPollAt": "2026-05-05T07:49:09.533Z",
+    "nextPollAt": "2026-05-05T08:19:09.536Z",
     "updatedAt": "2026-05-04T14:35:51.743Z"
   },
   "history": [

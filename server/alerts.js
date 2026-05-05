@@ -42,8 +42,14 @@ function checkAndAlert(store) {
 
   const threshold = store.config.alertThreshold ?? 3;
   const enabledMirrors = store.mirrors.filter((m) => m.enabled);
-  const available = enabledMirrors.filter((m) => m.serverStatus !== 'blocked').length;
   const total = enabledMirrors.length;
+
+  // Use preValidated count as the primary availability metric (set by the
+  // scheduled proxy poll). Fall back to serverStatus check if no poll has run.
+  const hasBeenPolled = enabledMirrors.some((m) => m.preValidated !== null && m.preValidated !== undefined);
+  const available = hasBeenPolled
+    ? enabledMirrors.filter((m) => m.preValidated === true).length
+    : enabledMirrors.filter((m) => m.serverStatus !== 'blocked').length;
 
   const base = {
     available,

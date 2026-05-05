@@ -52,4 +52,6 @@ export const api = {
   getLog: () => request('GET', '/log'),
   probeAll: () => request('POST', '/probe'),
   saveBlockPatterns: (blockPatterns) => request('POST', '/config', { blockPatterns }),
+  getPollStatus: () => request('GET', '/poll'),
+  triggerPoll: () => request('POST', '/poll'),
 };

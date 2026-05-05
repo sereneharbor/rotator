@@ -71,13 +71,19 @@ router.get('/', (req, res) => {
 
   const store = readStore();
 
-  // Public response: enabled + not server-blocked mirrors, id + url only
-  const enabled = store.mirrors
-    .filter((m) => m.enabled && m.serverStatus !== 'blocked')
+  // Public response: pre-validated mirrors only (id + url).
+  // Pre-validated = passed the last scheduled proxy poll.
+  // Fallback: if no poll has run yet, return all enabled mirrors so the
+  // system works out of the box before the first poll completes.
+  const enabledMirrors = store.mirrors.filter((m) => m.enabled);
+  const preValidated = enabledMirrors.filter((m) => m.preValidated === true);
+  const usingFallback = preValidated.length === 0;
+  const publicList = (usingFallback ? enabledMirrors : preValidated)
     .map(({ id, url }) => ({ id, url }));
 
   res.set('X-Probe-Timeout-Ms', String(store.config.probeTimeoutMs || 3000));
-  res.json(enabled);
+  res.set('X-Poll-Validated', usingFallback ? 'false' : 'true');
+  res.json(publicList);
 });
 
 // ─── POST /api/mirrors ────────────────────────────────────────────────────────
@@ -128,12 +134,17 @@ router.post('/', requireAuth, async (req, res) => {
   if (removed.length) parts.push(`Removed: ${removed.map((u) => new URL(u).hostname).join(', ')}`);
   const detail = parts.length ? parts.join('; ') : 'Reordered or toggled mirrors';
 
-  // Preserve existing serverStatus for mirrors that already exist
+  // Preserve existing server probe + poll status for mirrors that already exist
   const existingStatusMap = new Map(
     store.mirrors.map((m) => [m.id, {
       serverStatus: m.serverStatus,
       serverStatusReason: m.serverStatusReason,
       serverStatusAt: m.serverStatusAt,
+      preValidated: m.preValidated,
+      preValidatedAt: m.preValidatedAt,
+      pollStatus: m.pollStatus,
+      pollReason: m.pollReason,
+      pollProxy: m.pollProxy,
     }])
   );
 
@@ -141,6 +152,11 @@ router.post('/', requireAuth, async (req, res) => {
     serverStatus: null,
     serverStatusReason: null,
     serverStatusAt: null,
+    preValidated: null,
+    preValidatedAt: null,
+    pollStatus: null,
+    pollReason: null,
+    pollProxy: null,
     ...existingStatusMap.get(m.id),
     ...m,
   }));

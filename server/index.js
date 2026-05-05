@@ -23,6 +23,7 @@ app.use('/api/config', require('./routes/config'));
 app.use('/api/history', require('./routes/history'));
 app.use('/api/log', require('./routes/log'));
 app.use('/api/probe', require('./routes/probe'));
+app.use('/api/poll', require('./routes/poll'));
 
 // Serve React SPA in production
 if (process.env.NODE_ENV === 'production') {
@@ -36,4 +37,6 @@ if (process.env.NODE_ENV === 'production') {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  // Start background poll scheduler after the server is listening
+  require('./scheduler').start();
 });
